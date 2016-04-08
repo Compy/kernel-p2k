@@ -14,17 +14,18 @@
 
 //#define DEBUG 1
 
-#define WATCHDOG_TIMEOUT           1500
+#define WATCHDOG_TIMEOUT           3000
 
 #define NUM_SOLENOIDS              48
 #define NUM_LAMPS                  128
 #define NUM_SWITCHRULES            32
 
 #define TICK_SWITCHES              500  // 400 us
-#define TICK_LAMPS                 2430 // 2500 us (2.5ms)
+#define TICK_LAMPS                 610
+//#define TICK_LAMPS                 2430 // 2500 us (2.5ms)
 #define TICK_SOLENOIDS             2500 // 2500 us (2.5ms)
 #define UPDATE_SCHEDULE_US         31
-#define TICK_LEDS                  100000
+#define TICK_LEDS                  250000
 #define USB_SEND_INTERVAL_MS       8
 
 // Generic Pinball 2000 definitions
@@ -188,6 +189,7 @@
 #define CMD_HELLO                       18
 #define CMD_RESET_COIL_SCHEDULES        19
 #define CMD_SET_TICK_RATE               20
+#define CMD_SET_LED_MODE                21
 #define CMD_HEARTBEAT                   99
 
 // OUTBOUND COMMANDS
@@ -244,7 +246,13 @@ unsigned long last_led_tick = 0;
 unsigned long last_usb_send = 0;
 unsigned long lamp_tick_time = 0;
 unsigned long lamp_tick_interval = 0;
-unsigned long time;
+unsigned long time, uTime;
+
+unsigned long stats_lamp_exec_length = 0,
+              stats_switch_exec_length = 0,
+              stats_solenoid_exec_length = 0,
+              stats_led_exec_length = 0;
+
 Parallel *p;
 
 byte sw_data, sw_col, sw_row, sw_bit, sw_sw, sw_col_val, sw_bank, sw_switches, sw_bank_cnt;

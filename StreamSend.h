@@ -68,11 +68,13 @@ void StreamSend::sendObject(Stream &ostream, void* ptr, unsigned int objSize, ch
   if(MAX_SIZE >= objSize+getWrapperSize()) { //make sure the object isn't too large
     byte * b = (byte *) ptr; // Create a ptr array of the bytes to send
     ostream.write((byte)prefixChar); // Write the suffix character to signify the start of a stream
-
+    ostream.write(b,objSize);
+    /*
     // Loop through all the bytes being send and write them to the stream
     for(unsigned int i = 0; i<objSize; i++) {
       ostream.write(b[i]); // Write each byte to the stream
     }
+    */
     ostream.write((byte)suffixChar); // Write the prefix character to signify the end of a stream
   }
 }

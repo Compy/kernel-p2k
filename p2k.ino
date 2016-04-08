@@ -56,14 +56,14 @@ unsigned long switch_gap_time;
 void(* resetFunc) (void) = 0;
 void setup()
 {
-  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(  BRIGHTNESS );
 
-  Wire.begin();
+  TWBR = ((F_CPU / 850000) - 16) / 2;
   
   currentPalette = RainbowColors_p;
   currentBlending = LINEARBLEND;
-  Serial.begin(115200);
+  Serial.begin(57600);
   
   while (!Serial) {
   
@@ -81,8 +81,6 @@ void setup()
 
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
-
-  setLEDState(1, 1, 1);
 
   /*
 
@@ -106,8 +104,6 @@ void setup()
   
   hello_processed = false;
 
-  setAllLEDsWhite();
-
   //delay(2000);
 
   //Serial.println("P2K Controller");
@@ -120,122 +116,38 @@ void setup()
 }
 
 void setLEDState(byte chain, byte ledNum, byte state) {
+  unsigned long begin_time = micros();
+  Wire.begin();
   Wire.beginTransmission(8);
   Wire.write(1);
   Wire.write(chain);
   Wire.write(ledNum);
   Wire.write(state);
   Wire.endTransmission();
+  Wire.end();
+  stats_led_exec_length = micros() - begin_time;
 }
 
-// There are several different palettes of colors demonstrated here.
-//
-// FastLED provides several 'preset' palettes: RainbowColors_p, RainbowStripeColors_p,
-// OceanColors_p, CloudColors_p, LavaColors_p, ForestColors_p, and PartyColors_p.
-//
-// Additionally, you can manually define your own color palettes, or you can write
-// code that creates color palettes on the fly.  All are shown here.
-
-void ChangePalettePeriodically()
-{
-    uint8_t secondHand = (millis() / 1000) % 60;
-    static uint8_t lastSecond = 99;
-    
-    if( lastSecond != secondHand) {
-        lastSecond = secondHand;
-        if( secondHand ==  0)  { currentPalette = RainbowColors_p;         currentBlending = LINEARBLEND; }
-        if( secondHand == 10)  { currentPalette = RainbowStripeColors_p;   currentBlending = NOBLEND;  }
-        if( secondHand == 15)  { currentPalette = RainbowStripeColors_p;   currentBlending = LINEARBLEND; }
-        if( secondHand == 20)  { SetupPurpleAndGreenPalette();             currentBlending = LINEARBLEND; }
-        if( secondHand == 25)  { SetupTotallyRandomPalette();              currentBlending = LINEARBLEND; }
-        if( secondHand == 30)  { SetupBlackAndWhiteStripedPalette();       currentBlending = NOBLEND; }
-        if( secondHand == 35)  { SetupBlackAndWhiteStripedPalette();       currentBlending = LINEARBLEND; }
-        if( secondHand == 40)  { currentPalette = CloudColors_p;           currentBlending = LINEARBLEND; }
-        if( secondHand == 45)  { currentPalette = PartyColors_p;           currentBlending = LINEARBLEND; }
-        if( secondHand == 50)  { currentPalette = myRedWhiteBluePalette_p; currentBlending = NOBLEND;  }
-        if( secondHand == 55)  { currentPalette = myRedWhiteBluePalette_p; currentBlending = LINEARBLEND; }
-    }
+void disableALLLEDs() {
+  Wire.begin();
+  Wire.beginTransmission(8);
+  Wire.write(0);
+  Wire.write(0);
+  Wire.write(0);
+  Wire.write(0);
+  Wire.endTransmission();
+  Wire.end();
 }
 
-// This function fills the palette with totally random colors.
-void SetupTotallyRandomPalette()
-{
-    for( int i = 0; i < 16; i++) {
-        currentPalette[i] = CHSV( random8(), 255, random8());
-    }
-}
-
-// This function sets up a palette of black and white stripes,
-// using code.  Since the palette is effectively an array of
-// sixteen CRGB colors, the various fill_* functions can be used
-// to set them up.
-void SetupBlackAndWhiteStripedPalette()
-{
-    // 'black out' all 16 palette entries...
-    fill_solid( currentPalette, 16, CRGB::Black);
-    // and set every fourth one to white.
-    currentPalette[0] = CRGB::White;
-    currentPalette[4] = CRGB::White;
-    currentPalette[8] = CRGB::White;
-    currentPalette[12] = CRGB::White;
-    
-}
-
-// This function sets up a palette of purple and green stripes.
-void SetupPurpleAndGreenPalette()
-{
-    CRGB purple = CHSV( HUE_PURPLE, 255, 255);
-    CRGB green  = CHSV( HUE_GREEN, 255, 255);
-    CRGB black  = CRGB::Black;
-    
-    currentPalette = CRGBPalette16(
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black,
-                                   green,  green,  black,  black,
-                                   purple, purple, black,  black );
-}
-
-
-// This example shows how to set up a static color palette
-// which is stored in PROGMEM (flash), which is almost always more
-// plentiful than RAM.  A static PROGMEM palette like this
-// takes up 64 bytes of flash.
-const TProgmemPalette16 myRedWhiteBluePalette_p PROGMEM =
-{
-    CRGB::Red,
-    CRGB::Gray, // 'white' is too bright compared to red and blue
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Black,
-    
-    CRGB::Red,
-    CRGB::Red,
-    CRGB::Gray,
-    CRGB::Gray,
-    CRGB::Blue,
-    CRGB::Blue,
-    CRGB::Black,
-    CRGB::Black
-};
-
-void setAllLEDsWhite() {
-  for( int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = CRGB::HotPink;
-  }
-}
-
-void FillLEDsFromPaletteColors( uint8_t colorIndex)
-{
-    uint8_t brightness = 255;
-    
-    for( int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = ColorFromPalette( currentPalette, colorIndex, brightness, currentBlending);
-        colorIndex += 3;
-    }
+void setLEDMode(byte mode) {
+  Wire.begin();
+  Wire.beginTransmission(8);
+  Wire.write(1);
+  Wire.write(mode);
+  Wire.write(0);
+  Wire.write(mode);
+  Wire.endTransmission();
+  Wire.end();
 }
 
 void init_driverboard()
@@ -320,7 +232,10 @@ void loop()
 {
   //Serial.println("HI");
 
-  if (time - last_led_tick >= TICK_LEDS) {
+  time = millis();
+  uTime = micros();
+
+  if (uTime - last_led_tick >= TICK_LEDS) {
     /*
     ChangePalettePeriodically();
       
@@ -328,15 +243,16 @@ void loop()
     startIndex = startIndex + 1;
     
     FillLEDsFromPaletteColors( startIndex);
-    */
+    
     
     //FastLED.show();
     //FastLED.delay(1000);
-    setLEDState(1, 1, current_led_state);
+    */
+    //setLEDState(1, 1, current_led_state);
 
-    current_led_state = (current_led_state == 1) ? 0 : 1;
+    //current_led_state = (current_led_state == 1) ? 0 : 1;
     
-    last_led_tick = time;
+    last_led_tick = uTime;
   }
   
   struct P2KCommand c;
@@ -413,13 +329,18 @@ void loop()
       {
         disable_flippers();
       }
+      else if (c.opcode == CMD_SET_LED_MODE) {
+        setLEDMode(c.int1);
+      }
       
-      if (c.opcode == CMD_HELLO && !hello_processed)
+      if (c.opcode == CMD_HELLO)
       {
-        
-        init_driverboard();
-        hello_processed = true;
-        schedule_driver((byte)DRIVER_SOLENOID, (byte)0xd4, 0xFF00FF00, (byte)0);
+        last_heartbeat = time;
+        if (!hello_processed) {
+          init_driverboard();
+          hello_processed = true;
+          schedule_driver((byte)DRIVER_SOLENOID, (byte)0xd4, 0xFF00FF00, (byte)0);
+        }
         
 
         outbound_command.int1 = 0;
@@ -441,12 +362,12 @@ void loop()
       }
       else if (c.opcode == CMD_HEARTBEAT)
       {
-        last_heartbeat = millis();
-        outbound_command.int1 = switch_tick_time;
-        outbound_command.int2 = lamp_tick_time;
+        last_heartbeat = time;
+        outbound_command.int1 = stats_lamp_exec_length;
+        outbound_command.int2 = stats_switch_exec_length;
         outbound_command.opcode = CMD_HEARTBEAT;
-        outbound_command.int3 = 0;
-        outbound_command.int4 = 0;
+        outbound_command.int3 = stats_solenoid_exec_length;
+        outbound_command.int4 = stats_led_exec_length;
         send_msg(outbound_command);
               
       }
@@ -470,11 +391,11 @@ void loop()
       */
     }
   }
-  time = micros();
+  
   if (!hello_processed) {
     // Send hello up the chain
-    if (millis() - last_hello >= 2000) {
-      last_hello = millis();
+    if (time - last_hello >= 2000) {
+      last_hello = time;
       outbound_command.int1 = 0;
       outbound_command.int2 = 0;
       outbound_command.opcode = CMD_HELLO;
@@ -485,48 +406,38 @@ void loop()
     return;
   }
   
-  /*
-  if (millis() - last_send >= 100)
-  {
-    digitalWrite(13, LOW);
-    c.opcode = 12;
-    c.int1 = 1;
-    c.int2 = 2;
-    c.int3 = 0;
-    c.int4 = 0;
-    StreamSend::sendObject(Serial, &c, sizeof(struct command));
-    last_send = millis();
-  }
-  */
+  
 
   
   unsigned long task_start_time = 0;
-  if (time - last_solenoid_tick >= TICK_SOLENOIDS)
+  if (uTime - last_lamp_tick >= TICK_LAMPS)
   {
-    task_start_time = time;
-    solenoids_handler();
-    last_solenoid_tick = micros() - (micros() - task_start_time);
-  }
-  if (time - last_lamp_tick >= i_tick_lamps)
-  {
-    task_start_time = time;
+    task_start_time = uTime;
     lamps_handler();
-    lamp_tick_time = micros() - task_start_time;
-    last_lamp_tick = micros() - (micros() - task_start_time);
+    stats_lamp_exec_length = micros() - task_start_time;
+    last_lamp_tick = uTime;
   }
-
-  if (time - last_switch_tick >= TICK_SWITCHES)
+  else if (uTime - last_switch_tick >= TICK_SWITCHES)
   {
-    switch_gap_time = time - last_switch_tick;
-    task_start_time = time;
+    switch_gap_time = uTime - last_switch_tick;
+    task_start_time = uTime;
     switches_handler();
-    last_switch_tick = micros() - (micros() - task_start_time);
-    switch_tick_time = micros() - task_start_time;
+    stats_switch_exec_length = micros() - task_start_time;
+    last_switch_tick = uTime;
 
+  }
+  else if (uTime - last_solenoid_tick >= TICK_SOLENOIDS)
+  {
+    task_start_time = uTime;
+    solenoids_handler();
+    last_solenoid_tick = uTime;
+    stats_solenoid_exec_length = micros() - task_start_time;
   }
   
+  
   // Has the watchdog timed out?
-  if (millis() - last_heartbeat >= WATCHDOG_TIMEOUT)
+  
+  if (time - last_heartbeat >= WATCHDOG_TIMEOUT)
   {
     
     p->send_data(REGISTER_SOLENOID_D, 0x0);
@@ -535,16 +446,18 @@ void loop()
     p->send_data(REGISTER_SOLENOID_C, 0x0);
     p->send_data(REGISTER_SOLENOID_FLIPPER, 0x0);
     p->send_data(REGISTER_SOLENOID_LOGIC, 0x0);
-    
-    resetFunc();
+    setLEDMode(0);
+    if (hello_processed)
+      resetFunc();
     
   }
-  if (millis() - last_usb_send >= USB_SEND_INTERVAL_MS) {
+  
+  if (time - last_usb_send >= USB_SEND_INTERVAL_MS) {
     if (!eventq.isEmpty()) {
       P2KCommand c = eventq.dequeue();
       send_msg(c);
     }
-    last_usb_send = millis();
+    last_usb_send = time;
   }
   
 }
@@ -577,7 +490,7 @@ void set_action(byte type, byte num, byte mode, byte strength, byte on_time,
 byte off_time, int pulse_max)
 {
   struct action *action_ptr;
-  RTIME time;
+  RTIME pulse_time;
 
   if (type == ACTION_LAMP) {
     action_ptr = (struct action*) &lamp_matrix_action[lamp2driveridx(num)];
@@ -593,10 +506,10 @@ byte off_time, int pulse_max)
     action_ptr->strength = 1;
   }
 
-  time = on_time;
-  action_ptr->stop_time = millis() + time;
+  pulse_time = on_time;
+  action_ptr->stop_time = millis() + pulse_time;
   if (mode == ACTION_PULSE) {
-    action_ptr->pulse_on_time = time;
+    action_ptr->pulse_on_time = pulse_time;
     action_ptr->pulse_off_time = off_time;
     action_ptr->pulse_high = 1;
     action_ptr->pulse_max = pulse_max;
@@ -791,7 +704,6 @@ void lamps_handler()
 {
   struct action *action_ptr;
   // * * * Lamp matrix A & B * * *
-  time = millis();
   lamp_data[0] = lamp_data[1] = 0;
   for (lamp_row = 0; lamp_row < 8; lamp_row++)
   {
@@ -866,8 +778,8 @@ void lamps_handler()
       }
     }
   }
-  noInterrupts();
   // Send lamp data to the power driver board
+  noInterrupts();
   p->send_data(REGISTER_LAMP_COLUMN,1 << lamp_col);
   p->send_data(REGISTER_LAMP_ROW_A,lamp_data[0]);
   p->send_data(REGISTER_LAMP_ROW_B,lamp_data[1]);
@@ -886,10 +798,8 @@ void switches_handler()
     REGISTER_FUSE_A_DIAGNOSTIC, REGISTER_FUST_B_DIAGNOSTIC        };
 
   sw_col_val = (1 << sw_col);
-  noInterrupts();
   p->send_data(REGISTER_SWITCH_COLUMN, sw_col_val);
   sw_data = p->receive_data(REGISTER_SWITCH_ROW);
-  interrupts();
   /*
   Serial.print("sw_col_val: ");
    Serial.print(sw_col_val);
